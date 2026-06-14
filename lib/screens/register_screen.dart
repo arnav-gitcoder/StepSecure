@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:stepsecure_app/constants/colors.dart';
 import 'package:stepsecure_app/constants/styles.dart';
+import 'package:stepsecure_app/widgets/custom_button.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -171,8 +172,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               SizedBox(
                 width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
+                child: CustomButton(
+                  text: "Create Account",
+                  icon: Icons.person_add_alt_1,
+                  backgroundColor: AppColors.primary,
                   onPressed: () {
                     if (fullNameController.text.isEmpty ||
                         emailController.text.isEmpty ||
@@ -180,9 +183,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         passwordController.text.isEmpty ||
                         confirmPasswordController.text.isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Please fill all fields", style: TextStyle(
+                        const SnackBar(
+                          content: Text(
+                            "Please fill all fields",
+                            style: TextStyle(
                               color: AppColors.cardBackground,
-                              fontSize: 15,))),
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
                       );
                       return;
                     }
@@ -190,33 +199,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     if (passwordController.text !=
                         confirmPasswordController.text) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Passwords do not match", style: TextStyle(
+                        const SnackBar(
+                          content: Text(
+                            "Passwords do not match",
+                            style: TextStyle(
                               color: AppColors.cardBackground,
-                              fontSize: 15,))),
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
                       );
                       return;
                     }
 
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text("Account created successfully", style: TextStyle(
-                              color: AppColors.cardBackground,
-                              fontSize: 15,),
+                        content: Text(
+                          "Account created successfully",
+                          style: TextStyle(
+                            color: AppColors.cardBackground,
+                            fontSize: 15,
+                          ),
+                        ),
                       ),
-                    ));
+                    );
 
                     Navigator.pop(context);
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: const Text(
-                    "Create Account",
-                    style: TextStyle(fontSize: 15, color: AppColors.textPrimary),
-                  ),
                 ),
               ),
 

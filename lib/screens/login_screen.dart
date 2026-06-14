@@ -3,6 +3,7 @@ import '../main.dart';
 import 'register_screen.dart';
 import 'package:stepsecure_app/constants/colors.dart';
 import 'package:stepsecure_app/constants/styles.dart';
+import 'package:stepsecure_app/widgets/custom_button.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -135,46 +136,32 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 12),
 
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton(
-                  onPressed: () {
-                    if (emailController.text.isEmpty ||
-                        passwordController.text.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            "Please enter email and password",
-                            style: TextStyle(
-                              color: AppColors.cardBackground,
-                              fontSize: 15,
-                            ),
+              CustomButton(
+                text: "Login",
+                icon: Icons.login,
+                backgroundColor: AppColors.primary,
+                onPressed: () {
+                  if (emailController.text.isEmpty ||
+                      passwordController.text.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          "Please enter email and password",
+                          style: TextStyle(
+                            color: AppColors.cardBackground,
+                            fontSize: 15,
                           ),
                         ),
-                      );
-                      return;
-                    }
-
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (_) => const MainNavigation()),
+                      ),
                     );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: const Text(
-                    "Login",
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ),
+                    return;
+                  }
+
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (_) => const MainNavigation()),
+                  );
+                },
               ),
 
               const SizedBox(height: 20),
