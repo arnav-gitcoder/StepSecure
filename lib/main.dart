@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'firebase_options.dart';
 
@@ -16,16 +17,44 @@ import 'screens/settings_screen.dart';
 // AppTheme here, so it's referenced as `apptheme.AppTheme`.
 import 'config/app_theme.dart' as apptheme;
 
-// Default is dark mode, per product decision. Toggle in Settings
-// flips this via themeNotifier.value.
+const String _themePrefsKey = 'theme_mode';
+
+// Default is dark mode, per product decision, but this gets
+// overwritten below by whatever was last saved to disk.
 final ValueNotifier<ThemeMode> themeNotifier =
     ValueNotifier(ThemeMode.dark);
+
+/// Reads the saved theme choice and updates themeNotifier before first
+/// frame, so the app doesn't flash dark-then-light on startup.
+Future<void> _loadSavedTheme() async {
+  final prefs = await SharedPreferences.getInstance();
+  final saved = prefs.getString(_themePrefsKey);
+  if (saved == 'light') {
+    themeNotifier.value = ThemeMode.light;
+  } else if (saved == 'dark') {
+    themeNotifier.value = ThemeMode.dark;
+  }
+  // If nothing saved yet (first-ever launch), keep the ThemeMode.dark
+  // default above.
+}
+
+/// Call this from the Settings toggle instead of setting
+/// themeNotifier.value directly, so the choice survives a restart.
+Future<void> setThemeMode(ThemeMode mode) async {
+  themeNotifier.value = mode;
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString(
+    _themePrefsKey,
+    mode == ThemeMode.dark ? 'dark' : 'light',
+  );
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await _loadSavedTheme();
   runApp(const StepSecureApp());
 }
 

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stepsecure_app/constants/colors.dart';
 import 'package:stepsecure_app/services/auth_service.dart';
 import 'package:stepsecure_app/widgets/custom_button.dart';
 import 'email_verification_screen.dart';
+import 'package:intl_phone_field/phone_number.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -95,6 +97,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return null;
   }
 
+  bool _safeIsValidNumber(PhoneNumber phone) {
+    try {
+      return phone.isValidNumber();
+    } catch (_) {
+      // Incomplete or malformed input mid-typing — not valid yet,
+      // but not an app crash either.
+      return false;
+    }
+  }
+
   Future<void> _handleRegister() async {
     final formValid = _formKey.currentState?.validate() ?? false;
 
@@ -115,9 +127,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
         password: passwordController.text,
       );
 
-      // TODO: once a Firestore/user-profile layer exists, save
-      // fullNameController.text and _fullPhoneNumber there — Firebase
-      // Auth itself only stores email/password/uid.
+      if (user != null) {
+        // TODO: once a Firestore user-profile layer exists, move this
+        // there instead — SharedPreferences is local-only and won't
+        // sync across devices or survive an uninstall.
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('registered_name_${user.uid}', fullNameController.text.trim());
+        await prefs.setString('registered_phone_${user.uid}', _fullPhoneNumber ?? '');
+      }
 
       if (!mounted || user == null) return;
 
@@ -227,14 +244,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     icon: Icons.phone_outlined,
                   ).copyWith(counterText: ''),
                   onChanged: (phone) {
-                    _fullPhoneNumber = phone.completeNumber;
-                    _phoneValid = phone.isValidNumber();
+                    // Store with a space between country code and
+                    // number — phone.completeNumber concatenates them
+                    // with none (e.g. "+9198765..."), which looks
+                    // broken wherever this number is displayed later.
+                    _fullPhoneNumber = '${phone.countryCode} ${phone.number}';
+                    // isValidNumber() throws (rather than returning false)
+                    // for incomplete/malformed input, which happens on
+                    // every keystroke while typing — so this must be
+                    // caught, not just called.
+                    _phoneValid = _safeIsValidNumber(phone);
                   },
                   validator: (phone) {
                     if (phone == null || phone.number.isEmpty) {
                       return "Phone number is required";
                     }
-                    if (!phone.isValidNumber()) {
+                    if (!_safeIsValidNumber(phone)) {
                       return "Enter a valid phone number";
                     }
                     return null;

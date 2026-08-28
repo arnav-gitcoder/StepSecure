@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
+import 'package:stepsecure_app/services/auth_service.dart';
 import 'package:stepsecure_app/constants/colors.dart';
 import 'package:stepsecure_app/constants/styles.dart';
 import '../main.dart';
@@ -162,9 +163,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       darkModeEnabled = value;
                     });
 
-                    themeNotifier.value = value
-                        ? ThemeMode.dark
-                        : ThemeMode.light;
+                    setThemeMode(value ? ThemeMode.dark : ThemeMode.light);
                   },
                 ),
               ],
@@ -237,7 +236,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             width: double.infinity,
             height: 55,
             child: ElevatedButton.icon(
-              onPressed: () {
+              onPressed: () async {
+                await AuthService.instance.signOut();
+                if (!context.mounted) return;
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (_) => const LoginScreen()),
