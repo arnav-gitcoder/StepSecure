@@ -1,7 +1,4 @@
-// ignore_for_file: deprecated_member_use
-
 import 'package:flutter/material.dart';
-import '../constants/colors.dart';
 import '../constants/styles.dart';
 
 class SensorTile extends StatelessWidget {
@@ -20,14 +17,16 @@ class SensorTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.cardBackground,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -46,9 +45,10 @@ class SensorTile extends StatelessWidget {
 
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
+              color: cs.onSurface,
             ),
           ),
 
@@ -57,7 +57,9 @@ class SensorTile extends StatelessWidget {
           Text(
             title,
             textAlign: TextAlign.center,
-            style: AppStyles.bodyMedium,
+            style: AppStyles.bodyMedium.copyWith(
+              color: cs.onSurface.withValues(alpha: 0.6),
+            ),
           ),
         ],
       ),

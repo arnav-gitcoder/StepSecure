@@ -1,3 +1,12 @@
+enum FallPrediction { normal, warning, fall }
+
+FallPrediction fallPredictionFromString(String value) {
+  return FallPrediction.values.firstWhere(
+    (e) => e.name.toLowerCase() == value.toLowerCase(),
+    orElse: () => FallPrediction.normal,
+  );
+}
+
 class SensorDataModel {
   final double accelX;
   final double accelY;
@@ -7,7 +16,8 @@ class SensorDataModel {
   final double gyroY;
   final double gyroZ;
 
-  final String prediction;
+  final FallPrediction prediction;
+  final DateTime timestamp;
 
   SensorDataModel({
     required this.accelX,
@@ -17,6 +27,7 @@ class SensorDataModel {
     required this.gyroY,
     required this.gyroZ,
     required this.prediction,
+    required this.timestamp,
   });
 
   factory SensorDataModel.fromMap(Map<String, dynamic> map) {
@@ -27,7 +38,10 @@ class SensorDataModel {
       gyroX: (map['gyroX'] ?? 0).toDouble(),
       gyroY: (map['gyroY'] ?? 0).toDouble(),
       gyroZ: (map['gyroZ'] ?? 0).toDouble(),
-      prediction: map['prediction'] ?? 'Normal',
+      prediction: fallPredictionFromString(map['prediction'] ?? 'normal'),
+      timestamp: map['timestamp'] != null
+          ? DateTime.tryParse(map['timestamp']) ?? DateTime.now()
+          : DateTime.now(),
     );
   }
 
@@ -39,7 +53,8 @@ class SensorDataModel {
       'gyroX': gyroX,
       'gyroY': gyroY,
       'gyroZ': gyroZ,
-      'prediction': prediction,
+      'prediction': prediction.name,
+      'timestamp': timestamp.toIso8601String(),
     };
   }
 }

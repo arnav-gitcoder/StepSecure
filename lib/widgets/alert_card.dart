@@ -1,7 +1,4 @@
-// ignore_for_file: deprecated_member_use
-
 import 'package:flutter/material.dart';
-import '../constants/colors.dart';
 import '../constants/styles.dart';
 
 class AlertCard extends StatelessWidget {
@@ -11,6 +8,7 @@ class AlertCard extends StatelessWidget {
   final IconData icon;
   final Color color;
   final VoidCallback? onTap;
+  final ValueChanged<String>? onMenuSelected;
 
   const AlertCard({
     super.key,
@@ -20,13 +18,16 @@ class AlertCard extends StatelessWidget {
     required this.icon,
     required this.color,
     this.onTap,
+    this.onMenuSelected,
   });
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Card(
       elevation: 2,
-      color: AppColors.cardBackground,
+      color: cs.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
@@ -40,7 +41,7 @@ class AlertCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: color.withOpacity(0.15),
+                backgroundColor: color.withValues(alpha: 0.15),
                 child: Icon(
                   icon,
                   color: color,
@@ -55,28 +56,34 @@ class AlertCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: AppStyles.cardTitle,
+                      style: AppStyles.cardTitle.copyWith(
+                        color: cs.onSurface,
+                      ),
                     ),
 
                     const SizedBox(height: 6),
 
                     Text(
                       description,
-                      style: AppStyles.cardSubtitle,
+                      style: AppStyles.cardSubtitle.copyWith(
+                        color: cs.onSurface.withValues(alpha: 0.6),
+                      ),
                     ),
 
                     const SizedBox(height: 8),
 
                     Text(
                       time,
-                      style: AppStyles.bodySmall,
+                      style: AppStyles.bodySmall.copyWith(
+                        color: cs.onSurface.withValues(alpha: 0.45),
+                      ),
                     ),
                   ],
                 ),
               ),
 
               PopupMenuButton<String>(
-                onSelected: (value) {},
+                onSelected: onMenuSelected,
                 itemBuilder: (context) => const [
                   PopupMenuItem(
                     value: 'view',

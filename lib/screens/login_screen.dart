@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import '../main.dart';
 import 'register_screen.dart';
+import 'email_verification_screen.dart';
 import 'package:stepsecure_app/constants/colors.dart';
-import 'package:stepsecure_app/constants/styles.dart';
+import 'package:stepsecure_app/services/auth_service.dart';
 import 'package:stepsecure_app/widgets/custom_button.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -17,6 +18,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController passwordController = TextEditingController();
 
   bool obscurePassword = true;
+  bool _loading = false;
+  bool _googleLoading = false;
 
   @override
   void dispose() {
@@ -25,10 +28,98 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
+  Future<void> _handleEmailLogin() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      _showSnack("Please enter email and password");
+      return;
+    }
+
+    setState(() => _loading = true);
+    try {
+      final user = await AuthService.instance.signInWithEmail(
+        email: email,
+        password: password,
+      );
+
+      if (!mounted || user == null) return;
+
+      if (!user.emailVerified) {
+        // Not verified yet — send them to the gate screen instead of
+        // straight into the app, and resend a link in case the first
+        // one expired or got lost.
+        await AuthService.instance.sendEmailVerification();
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => EmailVerificationScreen(email: user.email!),
+          ),
+        );
+        return;
+      }
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const MainNavigation()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack(AuthService.instance.friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _handleGoogleLogin() async {
+    setState(() => _googleLoading = true);
+    try {
+      final user = await AuthService.instance.signInWithGoogle();
+      if (!mounted || user == null) return; // user cancelled the picker
+
+      // Google-verified accounts come back already emailVerified.
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const MainNavigation()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack(AuthService.instance.friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _googleLoading = false);
+    }
+  }
+
+  Future<void> _handleForgotPassword() async {
+    final email = emailController.text.trim();
+    if (email.isEmpty) {
+      _showSnack("Enter your email above first, then tap Forgot Password.");
+      return;
+    }
+
+    try {
+      await AuthService.instance.sendPasswordReset(email);
+      if (!mounted) return;
+      _showSnack("Password reset email sent to $email.");
+    } catch (e) {
+      if (!mounted) return;
+      _showSnack(AuthService.instance.friendlyError(e));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -53,10 +144,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 24),
 
-              const Text(
+              Text(
                 "Welcome Back",
                 style: TextStyle(
-                  color: AppColors.textSecondary,
+                  color: cs.onSurface,
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                 ),
@@ -64,10 +155,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 8),
 
-              const Text(
+              Text(
                 "Sign in to continue using StepSecure",
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
+                style: TextStyle(
+                  color: cs.onSurface.withValues(alpha: 0.6),
+                  fontSize: 15,
+                ),
               ),
 
               const SizedBox(height: 40),
@@ -75,6 +169,7 @@ class _LoginScreenState extends State<LoginScreen> {
               TextField(
                 controller: emailController,
                 keyboardType: TextInputType.emailAddress,
+                enabled: !_loading && !_googleLoading,
                 decoration: InputDecoration(
                   labelText: "Email",
                   prefixIcon: const Icon(Icons.email_outlined),
@@ -89,6 +184,8 @@ class _LoginScreenState extends State<LoginScreen> {
               TextField(
                 controller: passwordController,
                 obscureText: obscurePassword,
+                enabled: !_loading && !_googleLoading,
+                onSubmitted: (_) => _handleEmailLogin(),
                 decoration: InputDecoration(
                   labelText: "Password",
                   prefixIcon: const Icon(Icons.lock_outline),
@@ -113,23 +210,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: const Text("Forgot Password"),
-                        content: const Text(
-                          "Password reset will be available after Firebase Authentication is integrated.",
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text("OK"),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
+                  onPressed: _loading ? null : _handleForgotPassword,
                   child: const Text("Forgot Password?"),
                 ),
               ),
@@ -140,28 +221,60 @@ class _LoginScreenState extends State<LoginScreen> {
                 text: "Login",
                 icon: Icons.login,
                 backgroundColor: AppColors.primary,
-                onPressed: () {
-                  if (emailController.text.isEmpty ||
-                      passwordController.text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          "Please enter email and password",
-                          style: TextStyle(
-                            color: AppColors.cardBackground,
-                            fontSize: 15,
-                          ),
-                        ),
-                      ),
-                    );
-                    return;
-                  }
+                isLoading: _loading,
+                onPressed: _handleEmailLogin,
+              ),
 
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const MainNavigation()),
-                  );
-                },
+              const SizedBox(height: 20),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: Divider(color: cs.onSurface.withValues(alpha: 0.2)),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text(
+                      "OR",
+                      style: TextStyle(
+                        color: cs.onSurface.withValues(alpha: 0.5),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Divider(color: cs.onSurface.withValues(alpha: 0.2)),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: OutlinedButton.icon(
+                  onPressed: _googleLoading ? null : _handleGoogleLogin,
+                  icon: _googleLoading
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.g_mobiledata, size: 28),
+                  label: Text(
+                    _googleLoading ? "Signing in..." : "Continue with Google",
+                    style: TextStyle(color: cs.onSurface),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(
+                      color: cs.onSurface.withValues(alpha: 0.2),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
               ),
 
               const SizedBox(height: 20),
@@ -171,14 +284,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   const Text("Don't have an account?"),
                   TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const RegisterScreen(),
-                        ),
-                      );
-                    },
+                    onPressed: _loading || _googleLoading
+                        ? null
+                        : () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const RegisterScreen(),
+                              ),
+                            );
+                          },
                     child: const Text("Register"),
                   ),
                 ],

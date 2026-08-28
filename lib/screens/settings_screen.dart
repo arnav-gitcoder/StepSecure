@@ -16,17 +16,36 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool notificationsEnabled = true;
   bool vibrationEnabled = true;
-  bool darkModeEnabled = false;
+  bool darkModeEnabled = themeNotifier.value == ThemeMode.dark;
   bool emergencyAlertsEnabled = true;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    // Text styles kept from AppStyles for size/weight, color overridden
+    // per-theme so text stays readable in both light and dark mode.
+    final titleStyle = AppStyles.cardTitle.copyWith(
+      color: colorScheme.onSurface,
+    );
+    final bodyStyle = AppStyles.bodyMedium.copyWith(
+      color: colorScheme.onSurface,
+    );
+    final subtitleStyle = AppStyles.cardSubtitle.copyWith(
+      color: colorScheme.onSurface.withValues(alpha: 0.6),
+    );
+    final headingStyle = AppStyles.headingSmall.copyWith(
+      color: theme.appBarTheme.foregroundColor,
+    );
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      // No hardcoded AppColors.background here — Scaffold already
+      // inherits scaffoldBackgroundColor from the active theme in main.dart.
       appBar: AppBar(
-        title: const Text("Settings", style: AppStyles.headingSmall),
-        backgroundColor: AppColors.cardBackground,
-        foregroundColor: AppColors.textPrimary,
+        title: Text("Settings", style: headingStyle),
+        // backgroundColor/foregroundColor removed — inherits from
+        // appBarTheme (light/dark) defined in main.dart.
         elevation: 0,
       ),
       body: ListView(
@@ -36,23 +55,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: AppColors.cardBackground,
+              color: colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
             ),
-            child: const Row(
+            child: Row(
               children: [
-                CircleAvatar(
+                const CircleAvatar(
                   radius: 30,
                   backgroundColor: AppColors.primary,
                   child: Icon(Icons.person, color: Colors.white, size: 30),
                 ),
-                SizedBox(width: 16),
+                const SizedBox(width: 16),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("Arnav Srivastava", style: AppStyles.cardTitle),
-                    SizedBox(height: 4),
-                    Text("Caregiver Account", style: AppStyles.cardSubtitle),
+                    Text("Arnav Srivastava", style: titleStyle),
+                    const SizedBox(height: 4),
+                    Text("Caregiver Account", style: subtitleStyle),
                   ],
                 ),
               ],
@@ -61,25 +80,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 20),
 
-          const Text("Preferences", style: AppStyles.cardTitle),
+          Text("Preferences", style: titleStyle),
 
           const SizedBox(height: 12),
 
           Card(
-            color: AppColors.cardBackground,
+            color: colorScheme.surface,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
               children: [
                 SwitchListTile(
-                  title: const Text(
-                    "Push Notifications",
-                    style: AppStyles.bodyMedium,
-                  ),
-                  subtitle: const Text(
+                  title: Text("Push Notifications", style: bodyStyle),
+                  subtitle: Text(
                     "Receive fall detection alerts",
-                    style: AppStyles.cardSubtitle,
+                    style: subtitleStyle,
                   ),
                   secondary: const Icon(
                     Icons.notifications_active,
@@ -95,13 +111,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
 
                 SwitchListTile(
-                  title: const Text(
-                    "Emergency Alerts",
-                    style: AppStyles.bodyMedium,
-                  ),
-                  subtitle: const Text(
+                  title: Text("Emergency Alerts", style: bodyStyle),
+                  subtitle: Text(
                     "High-priority fall notifications",
-                    style: AppStyles.cardSubtitle,
+                    style: subtitleStyle,
                   ),
                   secondary: const Icon(
                     Icons.warning_amber_rounded,
@@ -117,10 +130,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
 
                 SwitchListTile(
-                  title: const Text("Vibration", style: AppStyles.bodyMedium),
-                  subtitle: const Text(
+                  title: Text("Vibration", style: bodyStyle),
+                  subtitle: Text(
                     "Vibrate on notifications",
-                    style: AppStyles.cardSubtitle,
+                    style: subtitleStyle,
                   ),
                   secondary: const Icon(
                     Icons.vibration,
@@ -136,14 +149,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
 
                 SwitchListTile(
-                  title: const Text("Dark Mode", style: AppStyles.bodyMedium),
-                  subtitle: const Text(
-                    "Enable dark theme",
-                    style: AppStyles.cardSubtitle,
-                  ),
-                  secondary: const Icon(
+                  title: Text("Dark Mode", style: bodyStyle),
+                  subtitle: Text("Enable dark theme", style: subtitleStyle),
+                  secondary: Icon(
                     Icons.dark_mode,
-                    color: AppColors.textSecondary,
+                    color: colorScheme.onSurface.withValues(alpha: 0.6),
                   ),
                   value: darkModeEnabled,
                   activeColor: AppColors.primary,
@@ -163,12 +173,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
           const SizedBox(height: 20),
 
-          const Text("Application", style: AppStyles.cardTitle),
+          Text("Application", style: titleStyle),
 
           const SizedBox(height: 12),
 
           Card(
-            color: AppColors.cardBackground,
+            color: colorScheme.surface,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
@@ -179,45 +189,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Icons.info_outline,
                     color: AppColors.primary,
                   ),
-                  title: const Text(
-                    "About StepSecure",
-                    style: AppStyles.bodyMedium,
+                  title: Text("About StepSecure", style: bodyStyle),
+                  subtitle: Text("Version 1.0.0", style: subtitleStyle),
+                  trailing: Icon(
+                    Icons.chevron_right,
+                    color: colorScheme.onSurface.withValues(alpha: 0.5),
                   ),
-                  subtitle: const Text(
-                    "Version 1.0.0",
-                    style: AppStyles.cardSubtitle,
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
                   onTap: () {},
                 ),
 
-                const Divider(height: 1),
+                Divider(height: 1, color: colorScheme.onSurface.withValues(alpha: 0.1)),
 
                 ListTile(
                   leading: const Icon(
                     Icons.help_outline,
                     color: AppColors.primary,
                   ),
-                  title: const Text(
-                    "Help & Support",
-                    style: AppStyles.bodyMedium,
+                  title: Text("Help & Support", style: bodyStyle),
+                  trailing: Icon(
+                    Icons.chevron_right,
+                    color: colorScheme.onSurface.withValues(alpha: 0.5),
                   ),
-                  trailing: const Icon(Icons.chevron_right),
                   onTap: () {},
                 ),
 
-                const Divider(height: 1),
+                Divider(height: 1, color: colorScheme.onSurface.withValues(alpha: 0.1)),
 
                 ListTile(
                   leading: const Icon(
                     Icons.privacy_tip_outlined,
                     color: AppColors.primary,
                   ),
-                  title: const Text(
-                    "Privacy Policy",
-                    style: AppStyles.bodyMedium,
+                  title: Text("Privacy Policy", style: bodyStyle),
+                  trailing: Icon(
+                    Icons.chevron_right,
+                    color: colorScheme.onSurface.withValues(alpha: 0.5),
                   ),
-                  trailing: const Icon(Icons.chevron_right),
                   onTap: () {},
                 ),
               ],

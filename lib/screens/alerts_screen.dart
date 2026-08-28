@@ -1,161 +1,156 @@
-// ignore_for_file: unused_import
-
 import 'package:flutter/material.dart';
 import 'package:stepsecure_app/constants/colors.dart';
 import 'package:stepsecure_app/constants/styles.dart';
+import 'package:stepsecure_app/widgets/alert_card.dart';
 
-class AlertsScreen extends StatelessWidget {
-  const AlertsScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text(
-          "Alerts",
-          style: AppStyles.headingSmall,
-        ),
-        backgroundColor: AppColors.cardBackground,
-        foregroundColor: AppColors.textPrimary,
-        elevation: 0,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: const [
-          AlertCard(
-            title: "Fall Detected",
-            description: "Immediate assistance may be required.",
-            time: "Today • 10:42 AM",
-            icon: Icons.warning_rounded,
-            color: AppColors.danger,
-          ),
-
-          SizedBox(height: 12),
-
-          AlertCard(
-            title: "Pre-Fall Warning",
-            description: "Unstable movement detected.",
-            time: "Today • 09:18 AM",
-            icon: Icons.error_outline,
-            color: AppColors.warning,
-          ),
-
-          SizedBox(height: 12),
-
-          AlertCard(
-            title: "Device Reconnected",
-            description: "ESP32 connection restored.",
-            time: "Yesterday • 08:51 PM",
-            icon: Icons.wifi,
-            color: AppColors.success,
-          ),
-
-          SizedBox(height: 12),
-
-          AlertCard(
-            title: "Low Battery",
-            description: "Wearable device battery below 20%.",
-            time: "Yesterday • 06:15 PM",
-            icon: Icons.battery_alert,
-            color: AppColors.warning,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class AlertCard extends StatelessWidget {
+class _Alert {
   final String title;
   final String description;
   final String time;
   final IconData icon;
   final Color color;
 
-  const AlertCard({
-    super.key,
+  const _Alert({
     required this.title,
     required this.description,
     required this.time,
     required this.icon,
     required this.color,
   });
+}
+
+class AlertsScreen extends StatefulWidget {
+  const AlertsScreen({super.key});
+
+  @override
+  State<AlertsScreen> createState() => _AlertsScreenState();
+}
+
+class _AlertsScreenState extends State<AlertsScreen> {
+  final List<_Alert> _alerts = const [
+    _Alert(
+      title: "Fall Detected",
+      description: "Immediate assistance may be required.",
+      time: "Today • 10:42 AM",
+      icon: Icons.warning_rounded,
+      color: AppColors.danger,
+    ),
+    _Alert(
+      title: "Pre-Fall Warning",
+      description: "Unstable movement detected.",
+      time: "Today • 09:18 AM",
+      icon: Icons.error_outline,
+      color: AppColors.warning,
+    ),
+    _Alert(
+      title: "Device Reconnected",
+      description: "ESP32 connection restored.",
+      time: "Yesterday • 08:51 PM",
+      icon: Icons.wifi,
+      color: AppColors.success,
+    ),
+    _Alert(
+      title: "Low Battery",
+      description: "Wearable device battery below 20%.",
+      time: "Yesterday • 06:15 PM",
+      icon: Icons.battery_alert,
+      color: AppColors.warning,
+    ),
+  ].toList();
+
+  void _handleMenuAction(int index, String value) {
+    final alert = _alerts[index];
+
+    if (value == 'dismiss') {
+      setState(() => _alerts.removeAt(index));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${alert.title} dismissed')),
+      );
+    } else if (value == 'view') {
+      _showDetail(alert);
+    }
+  }
+
+  void _showDetail(_Alert alert) {
+    final cs = Theme.of(context).colorScheme;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: cs.surface,
+        title: Text(
+          alert.title,
+          style: AppStyles.cardTitle.copyWith(color: cs.onSurface),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              alert.description,
+              style: AppStyles.bodyMedium.copyWith(color: cs.onSurface),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              alert.time,
+              style: AppStyles.cardSubtitle.copyWith(
+                color: cs.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Close"),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return Scaffold(
+      // backgroundColor removed — Scaffold inherits scaffoldBackgroundColor
+      // from the active theme (light/dark) set in main.dart.
+      appBar: AppBar(
+        title: Text(
+          "Alerts",
+          style: AppStyles.headingSmall.copyWith(
+            color: theme.appBarTheme.foregroundColor,
           ),
-        ],
+        ),
+        // backgroundColor/foregroundColor removed — inherits appBarTheme.
+        elevation: 0,
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: color.withValues(alpha: 0.15),
-            child: Icon(
-              icon,
-              color: color,
-            ),
-          ),
-
-          const SizedBox(width: 14),
-
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: AppStyles.cardTitle,
-                ),
-
-                const SizedBox(height: 6),
-
-                Text(
-                  description,
-                  style: AppStyles.bodyMedium,
-                ),
-
-                const SizedBox(height: 8),
-
-                Text(
-                  time,
-                  style: AppStyles.cardSubtitle,
-                ),
-              ],
-            ),
-          ),
-
-          PopupMenuButton<String>(
-            icon: const Icon(
-              Icons.more_vert,
-              color: AppColors.textSecondary,
-            ),
-            onSelected: (value) {},
-            itemBuilder: (context) => const [
-              PopupMenuItem(
-                value: 'view',
-                child: Text('View Details'),
+      body: _alerts.isEmpty
+          ? Center(
+              child: Text(
+                "No alerts",
+                style: AppStyles.bodyMedium.copyWith(color: cs.onSurface),
               ),
-              PopupMenuItem(
-                value: 'dismiss',
-                child: Text('Dismiss'),
-              ),
-            ],
-          ),
-        ],
-      ),
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: _alerts.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final alert = _alerts[index];
+                return AlertCard(
+                  title: alert.title,
+                  description: alert.description,
+                  time: alert.time,
+                  icon: alert.icon,
+                  color: alert.color,
+                  onTap: () => _showDetail(alert),
+                  onMenuSelected: (value) => _handleMenuAction(index, value),
+                );
+              },
+            ),
     );
   }
 }

@@ -1,5 +1,3 @@
-// ignore_for_file: unnecessary_underscores
-
 import 'package:flutter/material.dart';
 import 'package:stepsecure_app/constants/colors.dart';
 import 'package:stepsecure_app/constants/styles.dart';
@@ -37,14 +35,15 @@ class _ContactsScreenState extends State<ContactsScreen> {
     final nameController = TextEditingController();
     final relationController = TextEditingController();
     final phoneController = TextEditingController();
+    final cs = Theme.of(context).colorScheme;
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: AppColors.cardBackground,
-        title: const Text(
+        backgroundColor: cs.surface,
+        title: Text(
           "Add Contact",
-          style: AppStyles.cardTitle,
+          style: AppStyles.cardTitle.copyWith(color: cs.onSurface),
         ),
         content: SingleChildScrollView(
           child: Column(
@@ -102,7 +101,13 @@ class _ContactsScreenState extends State<ContactsScreen> {
           ),
         ],
       ),
-    );
+    ).then((_) {
+      // Dialog closed via Save, Cancel, back button, or barrier tap —
+      // either way these controllers are no longer needed.
+      nameController.dispose();
+      relationController.dispose();
+      phoneController.dispose();
+    });
   }
 
   void _deleteContact(int index) {
@@ -119,15 +124,18 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      // backgroundColor removed — inherits scaffoldBackgroundColor.
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           "Emergency Contacts",
-          style: AppStyles.headingSmall,
+          style: AppStyles.headingSmall.copyWith(
+            color: theme.appBarTheme.foregroundColor,
+          ),
         ),
-        backgroundColor: AppColors.cardBackground,
-        foregroundColor: AppColors.textPrimary,
         elevation: 0,
       ),
       body: Padding(
@@ -136,10 +144,12 @@ class _ContactsScreenState extends State<ContactsScreen> {
           children: [
             Expanded(
               child: contacts.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
                         "No contacts added yet",
-                        style: AppStyles.bodyMedium,
+                        style: AppStyles.bodyMedium.copyWith(
+                          color: cs.onSurface,
+                        ),
                       ),
                     )
                   : ListView.separated(
@@ -154,6 +164,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
                           relation: contact["relation"],
                           phone: contact["phone"],
                           color: contact["color"],
+                          cardColor: cs.surface,
+                          textColor: cs.onSurface,
                           onDelete: () => _deleteContact(index),
                         );
                       },
@@ -190,16 +202,18 @@ class _ContactsScreenState extends State<ContactsScreen> {
     required String relation,
     required String phone,
     required Color color,
+    required Color cardColor,
+    required Color textColor,
     required VoidCallback onDelete,
   }) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: AppColors.cardBackground,
+        color: cardColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withAlpha(12),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, 3),
           ),
@@ -209,7 +223,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
         children: [
           CircleAvatar(
             radius: 28,
-            backgroundColor: color.withAlpha(40),
+            backgroundColor: color.withValues(alpha: 0.15),
             child: Icon(
               Icons.person,
               color: color,
@@ -223,17 +237,19 @@ class _ContactsScreenState extends State<ContactsScreen> {
               children: [
                 Text(
                   name,
-                  style: AppStyles.cardTitle,
+                  style: AppStyles.cardTitle.copyWith(color: textColor),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   relation,
-                  style: AppStyles.cardSubtitle,
+                  style: AppStyles.cardSubtitle.copyWith(
+                    color: textColor.withValues(alpha: 0.6),
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   phone,
-                  style: AppStyles.bodyMedium,
+                  style: AppStyles.bodyMedium.copyWith(color: textColor),
                 ),
               ],
             ),

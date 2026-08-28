@@ -1,0 +1,82 @@
+{
+  "project_info": {
+    "project_number": "722716202776",
+    "project_id": "step-c1e59",
+    "storage_bucket": "step-c1e59.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:722716202776:android:1e8104e8052c60aae0706d",
+        "android_client_info": {
+          "package_name": "com.example.meditation_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "722716202776-8o5j0hcg9uksml3s56vau8647krftqis.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBn6IqsOk1rxywbHv9212RaiCrxgbwbCsI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "722716202776-8o5j0hcg9uksml3s56vau8647krftqis.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "722716202776-hj74pef7p61dci9apdem51oei8ubjauq.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.meditationApp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:722716202776:android:23ff4f1cc3f1c25ae0706d",
+        "android_client_info": {
+          "package_name": "com.example.stepsecure_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "722716202776-8o5j0hcg9uksml3s56vau8647krftqis.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBn6IqsOk1rxywbHv9212RaiCrxgbwbCsI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "722716202776-8o5j0hcg9uksml3s56vau8647krftqis.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "722716202776-hj74pef7p61dci9apdem51oei8ubjauq.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.meditationApp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

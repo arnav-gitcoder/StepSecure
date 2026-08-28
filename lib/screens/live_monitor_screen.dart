@@ -1,28 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:stepsecure_app/constants/colors.dart';
 import 'package:stepsecure_app/constants/styles.dart';
+import 'package:stepsecure_app/widgets/sensor_tile.dart';
 
 class LiveMonitorScreen extends StatelessWidget {
   const LiveMonitorScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    final headingStyle = AppStyles.headingSmall.copyWith(
+      color: cs.onSurface,
+    );
+    final bodyStyle = AppStyles.bodyMedium.copyWith(color: cs.onSurface);
+    final subtitleStyle = AppStyles.cardSubtitle.copyWith(
+      color: cs.onSurface.withValues(alpha: 0.6),
+    );
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      // backgroundColor removed — inherits scaffoldBackgroundColor.
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Live Monitoring',
-          style: AppStyles.headingSmall,
+          style: AppStyles.headingSmall.copyWith(
+            color: theme.appBarTheme.foregroundColor,
+          ),
         ),
-        backgroundColor: AppColors.cardBackground,
-        foregroundColor: AppColors.textPrimary,
         elevation: 0,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Status Card
+            // Status Card — fixed colored banner, same in both themes.
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(24),
@@ -61,62 +73,99 @@ class LiveMonitorScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            _buildSectionTitle("Accelerometer"),
+            _buildSectionTitle("Accelerometer", headingStyle),
 
             const SizedBox(height: 10),
 
-            _sensorGroupCard(
-              title: "Accelerometer Data",
-              icon: Icons.sensors,
-              iconColor: AppColors.primary,
-              values: const [
-                ["X-Axis", "0.23 g"],
-                ["Y-Axis", "-0.15 g"],
-                ["Z-Axis", "0.98 g"],
+            Row(
+              children: const [
+                Expanded(
+                  child: SensorTile(
+                    title: "X-Axis",
+                    value: "0.23 g",
+                    icon: Icons.sensors,
+                    color: AppColors.primary,
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: SensorTile(
+                    title: "Y-Axis",
+                    value: "-0.15 g",
+                    icon: Icons.sensors,
+                    color: AppColors.primary,
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: SensorTile(
+                    title: "Z-Axis",
+                    value: "0.98 g",
+                    icon: Icons.sensors,
+                    color: AppColors.primary,
+                  ),
+                ),
               ],
             ),
 
             const SizedBox(height: 24),
 
-            _buildSectionTitle("Gyroscope"),
+            _buildSectionTitle("Gyroscope", headingStyle),
 
             const SizedBox(height: 10),
 
-            _sensorGroupCard(
-              title: "Gyroscope Data",
-              icon: Icons.rotate_right,
-              iconColor: Colors.purple,
-              values: const [
-                ["X-Rotation", "1.42 °/s"],
-                ["Y-Rotation", "0.67 °/s"],
-                ["Z-Rotation", "0.89 °/s"],
+            Row(
+              children: const [
+                Expanded(
+                  child: SensorTile(
+                    title: "X-Rotation",
+                    value: "1.42 °/s",
+                    icon: Icons.rotate_right,
+                    color: Colors.purple,
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: SensorTile(
+                    title: "Y-Rotation",
+                    value: "0.67 °/s",
+                    icon: Icons.rotate_right,
+                    color: Colors.purple,
+                  ),
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: SensorTile(
+                    title: "Z-Rotation",
+                    value: "0.89 °/s",
+                    icon: Icons.rotate_right,
+                    color: Colors.purple,
+                  ),
+                ),
               ],
             ),
 
             const SizedBox(height: 24),
 
-            _buildSectionTitle("System Information"),
+            _buildSectionTitle("System Information", headingStyle),
 
             const SizedBox(height: 10),
 
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: AppColors.cardBackground,
+                color: cs.surface,
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: const Column(
+              child: Column(
                 children: [
                   ListTile(
-                    leading: Icon(
+                    leading: const Icon(
                       Icons.wifi,
                       color: AppColors.success,
                     ),
-                    title: Text(
-                      "Device Connection",
-                      style: AppStyles.bodyMedium,
-                    ),
-                    trailing: Text(
+                    title: Text("Device Connection", style: bodyStyle),
+                    trailing: const Text(
                       "Connected",
                       style: TextStyle(
                         color: AppColors.success,
@@ -124,17 +173,14 @@ class LiveMonitorScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                  Divider(),
+                  const Divider(),
                   ListTile(
-                    leading: Icon(
+                    leading: const Icon(
                       Icons.memory,
                       color: AppColors.primary,
                     ),
-                    title: Text(
-                      "ML Model Status",
-                      style: AppStyles.bodyMedium,
-                    ),
-                    trailing: Text(
+                    title: Text("ML Model Status", style: bodyStyle),
+                    trailing: const Text(
                       "Active",
                       style: TextStyle(
                         color: AppColors.primary,
@@ -142,20 +188,14 @@ class LiveMonitorScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                  Divider(),
+                  const Divider(),
                   ListTile(
-                    leading: Icon(
+                    leading: const Icon(
                       Icons.access_time,
                       color: AppColors.warning,
                     ),
-                    title: Text(
-                      "Last Update",
-                      style: AppStyles.bodyMedium,
-                    ),
-                    trailing: Text(
-                      "Just Now",
-                      style: AppStyles.cardSubtitle,
-                    ),
+                    title: Text("Last Update", style: bodyStyle),
+                    trailing: Text("Just Now", style: subtitleStyle),
                   ),
                 ],
               ),
@@ -166,90 +206,10 @@ class LiveMonitorScreen extends StatelessWidget {
     );
   }
 
-  static Widget _buildSectionTitle(String title) {
+  static Widget _buildSectionTitle(String title, TextStyle style) {
     return Align(
       alignment: Alignment.centerLeft,
-      child: Text(
-        title,
-        style: AppStyles.headingSmall,
-      ),
-    );
-  }
-
-  static Widget _sensorGroupCard({
-    required String title,
-    required IconData icon,
-    required Color iconColor,
-    required List<List<String>> values,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppColors.cardBackground,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Icon(
-                icon,
-                color: iconColor,
-                size: 28,
-              ),
-              const SizedBox(width: 10),
-              Text(
-                title,
-                style: AppStyles.cardTitle,
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-
-          for (int i = 0; i < values.length; i++) ...[
-            _sensorValueRow(
-              values[i][0],
-              values[i][1],
-            ),
-            if (i != values.length - 1) const Divider(),
-          ],
-        ],
-      ),
-    );
-  }
-
-  static Widget _sensorValueRow(
-    String label,
-    String value,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: AppStyles.bodyMedium,
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
-          ),
-        ],
-      ),
+      child: Text(title, style: style),
     );
   }
 }

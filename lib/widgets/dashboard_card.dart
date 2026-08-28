@@ -24,9 +24,11 @@ class DashboardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Card(
       elevation: 2,
-      color: AppColors.cardBackground,
+      color: cs.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
@@ -42,8 +44,7 @@ class DashboardCard extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     backgroundColor:
-                        // ignore: deprecated_member_use
-                        (iconColor ?? AppColors.primary).withOpacity(0.15),
+                        (iconColor ?? AppColors.primary).withValues(alpha: 0.15),
                     child: Icon(
                       icon,
                       color: iconColor ?? AppColors.primary,
@@ -58,20 +59,24 @@ class DashboardCard extends StatelessWidget {
                       children: [
                         Text(
                           title,
-                          style: AppStyles.cardTitle,
+                          style: AppStyles.cardTitle.copyWith(
+                            color: cs.onSurface,
+                          ),
                         ),
                         if (subtitle != null) ...[
                           const SizedBox(height: 4),
                           Text(
                             subtitle!,
-                            style: AppStyles.cardSubtitle,
+                            style: AppStyles.cardSubtitle.copyWith(
+                              color: cs.onSurface.withValues(alpha: 0.6),
+                            ),
                           ),
                         ],
                       ],
                     ),
                   ),
 
-                  ...(trailing != null ? [trailing!] : []),
+                  if (trailing != null) trailing!,
                 ],
               ),
 
