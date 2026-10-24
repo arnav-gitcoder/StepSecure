@@ -4,6 +4,7 @@ import 'register_screen.dart';
 import 'email_verification_screen.dart';
 import 'package:stepsecure_app/constants/colors.dart';
 import 'package:stepsecure_app/services/auth_service.dart';
+import 'package:stepsecure_app/utils/validators.dart';
 import 'package:stepsecure_app/widgets/custom_button.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -20,6 +21,10 @@ class _LoginScreenState extends State<LoginScreen> {
   bool obscurePassword = true;
   bool _loading = false;
   bool _googleLoading = false;
+  bool _resetting = false;
+
+  /// True while any request is running. Blocks double submissions.
+  bool get _busy => _loading || _googleLoading || _resetting;
 
   @override
   void dispose() {
@@ -29,17 +34,25 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _handleEmailLogin() async {
+    if (_busy) return;
+
     final email = emailController.text.trim();
     final password = passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
       _showSnack("Please enter email and password");
+      return;
+    }
+
+    final emailError = Validators.email(email);
+    if (emailError != null) {
+      _showSnack(emailError);
       return;
     }
 
@@ -54,14 +67,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!user.emailVerified) {
         // Not verified yet — send them to the gate screen instead of
-        // straight into the app, and resend a link in case the first
-        // one expired or got lost.
-        await AuthService.instance.sendEmailVerification();
-        if (!mounted) return;
+        // straight into the app. That screen has a Resend button (with a
+        // cooldown), so we don't fire another email on every login; doing
+        // so can hit Firebase's rate limit and block this very redirect.
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => EmailVerificationScreen(email: user.email!),
+            builder: (_) => EmailVerificationScreen(email: user.email ?? email),
           ),
         );
         return;
@@ -80,6 +92,8 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleGoogleLogin() async {
+    if (_busy) return;
+
     setState(() => _googleLoading = true);
     try {
       final user = await AuthService.instance.signInWithGoogle();
@@ -99,19 +113,35 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleForgotPassword() async {
+    if (_busy) return;
+
     final email = emailController.text.trim();
     if (email.isEmpty) {
       _showSnack("Enter your email above first, then tap Forgot Password.");
       return;
     }
 
+    final emailError = Validators.email(email);
+    if (emailError != null) {
+      _showSnack(emailError);
+      return;
+    }
+
+    setState(() => _resetting = true);
     try {
       await AuthService.instance.sendPasswordReset(email);
       if (!mounted) return;
-      _showSnack("Password reset email sent to $email.");
+      // Same wording whether or not an account exists, so this screen can't
+      // be used to find out who is registered.
+      _showSnack(
+        "If an account exists for $email, a password reset link is on its "
+        "way. Check your spam folder too.",
+      );
     } catch (e) {
       if (!mounted) return;
       _showSnack(AuthService.instance.friendlyError(e));
+    } finally {
+      if (mounted) setState(() => _resetting = false);
     }
   }
 
@@ -169,7 +199,9 @@ class _LoginScreenState extends State<LoginScreen> {
               TextField(
                 controller: emailController,
                 keyboardType: TextInputType.emailAddress,
-                enabled: !_loading && !_googleLoading,
+                textInputAction: TextInputAction.next,
+                autocorrect: false,
+                enabled: !_busy,
                 decoration: InputDecoration(
                   labelText: "Email",
                   prefixIcon: const Icon(Icons.email_outlined),
@@ -184,12 +216,13 @@ class _LoginScreenState extends State<LoginScreen> {
               TextField(
                 controller: passwordController,
                 obscureText: obscurePassword,
-                enabled: !_loading && !_googleLoading,
+                enabled: !_busy,
                 onSubmitted: (_) => _handleEmailLogin(),
                 decoration: InputDecoration(
                   labelText: "Password",
                   prefixIcon: const Icon(Icons.lock_outline),
                   suffixIcon: IconButton(
+                    tooltip: obscurePassword ? "Show password" : "Hide password",
                     icon: Icon(
                       obscurePassword ? Icons.visibility_off : Icons.visibility,
                     ),
@@ -210,8 +243,10 @@ class _LoginScreenState extends State<LoginScreen> {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: _loading ? null : _handleForgotPassword,
-                  child: const Text("Forgot Password?"),
+                  onPressed: _busy ? null : _handleForgotPassword,
+                  child: Text(
+                    _resetting ? "Sending..." : "Forgot Password?",
+                  ),
                 ),
               ),
 
@@ -254,7 +289,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 width: double.infinity,
                 height: 55,
                 child: OutlinedButton.icon(
-                  onPressed: _googleLoading ? null : _handleGoogleLogin,
+                  onPressed: _busy ? null : _handleGoogleLogin,
                   icon: _googleLoading
                       ? const SizedBox(
                           height: 18,
@@ -284,7 +319,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   const Text("Don't have an account?"),
                   TextButton(
-                    onPressed: _loading || _googleLoading
+                    onPressed: _busy
                         ? null
                         : () {
                             Navigator.push(

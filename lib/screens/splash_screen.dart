@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
 import 'email_verification_screen.dart';
@@ -21,22 +20,37 @@ class _SplashScreenState extends State<SplashScreen> {
     _route();
   }
 
+  Future<Widget> _resolveDestination() async {
+    final user = AuthService.instance.currentUser;
+    if (user == null) return const LoginScreen();
+
+    // Ask the server for the real verified state, but never wait forever:
+    // null means "couldn't reach Firebase" (offline / timeout), in which
+    // case we trust the cached value so an offline launch still works.
+    final fresh = await AuthService.instance.refreshEmailVerified();
+
+    // refreshEmailVerified signs the user out if the account was deleted or
+    // disabled, so look again.
+    final current = AuthService.instance.currentUser;
+    if (current == null) return const LoginScreen();
+
+    final verified = fresh ?? current.emailVerified;
+    return verified
+        ? const MainNavigation()
+        : EmailVerificationScreen(email: current.email ?? '');
+  }
+
   Future<void> _route() async {
     // Keep the brand moment on screen briefly even on a fast/no-op
     // auth check, so it doesn't flash by instantly.
-    final minDelay = Future.delayed(const Duration(seconds: 2));
+    final minDelay = Future<void>.delayed(const Duration(seconds: 2));
 
-    final user = AuthService.instance.currentUser;
     Widget destination;
-
-    if (user == null) {
+    try {
+      destination = await _resolveDestination();
+    } catch (_) {
+      // Never leave the user on an endless splash screen.
       destination = const LoginScreen();
-    } else {
-      // Local emailVerified can be stale, so reload before deciding.
-      final verified = await AuthService.instance.reloadAndCheckVerified();
-      destination = verified
-          ? const MainNavigation()
-          : EmailVerificationScreen(email: user.email!);
     }
 
     await minDelay;
@@ -50,6 +64,8 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -73,17 +89,21 @@ class _SplashScreenState extends State<SplashScreen> {
 
               const SizedBox(height: 24),
 
-              const Text(
+              // Colors come from the theme: the shared splash styles are
+              // hardcoded white, which disappears in light mode.
+              Text(
                 "StepSecure",
-                style: AppStyles.splashTitle,
+                style: AppStyles.splashTitle.copyWith(color: cs.onSurface),
               ),
 
               const SizedBox(height: 8),
 
-              const Text(
+              Text(
                 "AI-Powered Fall Detection System",
                 textAlign: TextAlign.center,
-                style: AppStyles.splashSubtitle,
+                style: AppStyles.splashSubtitle.copyWith(
+                  color: cs.onSurface.withValues(alpha: 0.7),
+                ),
               ),
 
               const SizedBox(height: 60),

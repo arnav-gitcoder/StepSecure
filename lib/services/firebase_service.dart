@@ -2,60 +2,143 @@ import 'package:firebase_database/firebase_database.dart';
 
 import '../models/sensor_data_model.dart';
 
-/// Handles Realtime Database sensor stream.
-/// Path structure: sensors/{deviceId}/live
-/// Multi-device ready — just pass different deviceId, no code change needed.
+/// Realtime Database access for the wearable.
+///
+/// Paths (proposed contract, see hardware_data_contract.md):
+///
+///   userDevices/{uid}/{deviceId}   -> device ownership (written by the
+///                                     backend pairing flow, NOT by the app)
+///   sensors/{deviceId}/live        -> latest reading  (SensorDataModel)
+///   sensors/{deviceId}/status      -> DeviceStatus: { state, lastHeartbeat,
+///                                     monitoring, battery }
+///
+/// There is no default device id: which devices a user sees comes from
+/// `userDevices/{uid}`, so every account gets its own devices.
+///
+/// The database connection is created lazily and every stream is guarded.
+/// If the database doesn't exist yet (or its URL isn't configured), the
+/// streams emit an error instead of crashing the app, and the UI shows a
+/// "wearable status unavailable" state.
+///
+/// Streams do NOT swallow errors: a permission-denied or network error is
+/// delivered to the listener's `onError` / `StreamBuilder.hasError` (see
+/// `DataErrorHelper.friendlyMessage`). Always pass `onError` to `.listen()`.
 class FirebaseService {
-  final DatabaseReference _db = FirebaseDatabase.instance.ref();
+  FirebaseService({FirebaseDatabase? database}) : _database = database;
 
-  /// Default device id — swap when multi-device support goes live.
-  static const String defaultDeviceId = 'device_01';
+  final FirebaseDatabase? _database;
+  DatabaseReference? _root;
 
-  /// Live stream of sensor readings for a given device.
-  /// Usage: firebaseService.sensorStream().listen((data) { ... })
-  Stream<SensorDataModel> sensorStream({String deviceId = defaultDeviceId}) {
-    final ref = _db.child('sensors/$deviceId/live');
+  /// Created on first use, so constructing the service can never throw.
+  DatabaseReference get _db =>
+      _root ??= (_database ?? FirebaseDatabase.instance).ref();
 
-    return ref.onValue.map((event) {
-      final raw = event.snapshot.value;
-      if (raw is Map) {
-        return SensorDataModel.fromMap(Map<String, dynamic>.from(raw));
-      }
-      // Fallback if node empty or malformed — avoid crashing the stream.
-      return SensorDataModel.fromMap(const {});
+  static final RegExp _safeKey = RegExp(r'^[A-Za-z0-9_\-]+$');
+
+  /// Guards against empty ids and path tricks (`/`, `.`, `#`, `$`, `[`, `]`).
+  String _checkKey(String value, String name) {
+    if (!_safeKey.hasMatch(value)) {
+      throw ArgumentError.value(value, name, 'is not a valid id');
+    }
+    return value;
+  }
+
+  /// Turns a synchronous failure while opening a stream (bad id, missing
+  /// database) into an error event on that stream.
+  Stream<T> _guard<T>(Stream<T> Function() open) {
+    try {
+      return open();
+    } catch (e) {
+      return Stream<T>.error(e);
+    }
+  }
+
+  // ---------- DEVICE OWNERSHIP ----------
+
+  /// Ids of the devices that belong to [uid], live. Empty list = the user
+  /// has no linked device (show the "no wearable linked" empty state).
+  Stream<List<String>> userDeviceIdsStream(String uid) {
+    return _guard(() {
+      _checkKey(uid, 'uid');
+      return _db.child('userDevices/$uid').onValue.map((event) {
+        final raw = event.snapshot.value;
+        if (raw is Map) {
+          return raw.keys.map((k) => k.toString()).toList()..sort();
+        }
+        return <String>[];
+      });
     });
   }
 
-  /// One-time read, useful for initial screen load before stream connects.
-  Future<SensorDataModel> getLatestReading({
-    String deviceId = defaultDeviceId,
+  /// One-time read of [uid]'s device ids. Only reads that user's node, never
+  /// the whole `sensors` tree.
+  Future<List<String>> listUserDeviceIds(String uid) async {
+    _checkKey(uid, 'uid');
+    final snapshot = await _db.child('userDevices/$uid').get();
+    final raw = snapshot.value;
+    if (snapshot.exists && raw is Map) {
+      return raw.keys.map((k) => k.toString()).toList()..sort();
+    }
+    return <String>[];
+  }
+
+  // ---------- LIVE DATA ----------
+
+  /// Live readings for [deviceId]. Emits `null` when the node is empty or
+  /// malformed. Null means "no data", never a fake all-zero reading.
+  Stream<SensorDataModel?> sensorStream({required String deviceId}) {
+    return _guard(() {
+      _checkKey(deviceId, 'deviceId');
+      return _db.child('sensors/$deviceId/live').onValue.map((event) {
+        return _parseReading(event.snapshot.value);
+      });
+    });
+  }
+
+  /// One-time read for the initial screen load. Null = no data.
+  Future<SensorDataModel?> getLatestReading({
+    required String deviceId,
   }) async {
+    _checkKey(deviceId, 'deviceId');
     final snapshot = await _db.child('sensors/$deviceId/live').get();
-    if (snapshot.exists && snapshot.value is Map) {
-      return SensorDataModel.fromMap(
-        Map<String, dynamic>.from(snapshot.value as Map),
-      );
-    }
-    return SensorDataModel.fromMap(const {});
+    return _parseReading(snapshot.value);
   }
 
-  /// List all registered device ids — powers a device picker if/when
-  /// multi-device support is turned on.
-  Future<List<String>> listDeviceIds() async {
-    final snapshot = await _db.child('sensors').get();
-    if (snapshot.exists && snapshot.value is Map) {
-      return (snapshot.value as Map).keys.map((k) => k.toString()).toList();
-    }
-    return [defaultDeviceId];
+  SensorDataModel? _parseReading(Object? raw) {
+    if (raw is! Map) return null;
+    final reading = SensorDataModel.fromMap(Map<String, dynamic>.from(raw));
+    return reading.isEmpty ? null : reading;
   }
 
-  /// Check device online/connectivity flag, if ESP32 writes one
-  /// (e.g. sensors/{deviceId}/status = 'online' | 'offline').
-  Stream<String> deviceStatusStream({String deviceId = defaultDeviceId}) {
-    final ref = _db.child('sensors/$deviceId/status');
-    return ref.onValue.map((event) {
-      final value = event.snapshot.value;
-      return value?.toString() ?? 'unknown';
+  // ---------- DEVICE STATUS ----------
+
+  /// Live device status. Use [DeviceStatus.connectionAt] with server-adjusted
+  /// time to decide connected / stale / disconnected. Don't trust a stored
+  /// "online" flag on its own.
+  Stream<DeviceStatus> deviceStatusStream({required String deviceId}) {
+    return _guard(() {
+      _checkKey(deviceId, 'deviceId');
+      return _db.child('sensors/$deviceId/status').onValue.map(
+            (event) => DeviceStatus.fromRaw(event.snapshot.value),
+          );
     });
   }
+
+  // ---------- SERVER TIME ----------
+
+  /// Difference between the Firebase server clock and this phone's clock.
+  /// Add it to `DateTime.now()` (see [serverNow]) before comparing against
+  /// device heartbeats, because the phone's clock can be wrong.
+  Stream<Duration> serverTimeOffsetStream() {
+    return _guard(() {
+      return _db.child('.info/serverTimeOffset').onValue.map((event) {
+        final value = event.snapshot.value;
+        return value is num
+            ? Duration(milliseconds: value.toInt())
+            : Duration.zero;
+      });
+    });
+  }
+
+  static DateTime serverNow(Duration offset) => DateTime.now().add(offset);
 }

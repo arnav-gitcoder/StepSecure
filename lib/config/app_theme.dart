@@ -1,140 +1,142 @@
 import 'package:flutter/material.dart';
 
-/// Central color palette. Keep all raw color values here only.
-class AppColors {
-  AppColors._();
+import '../constants/colors.dart';
 
-  static const Color primary = Color(0xFF2A6F97);
-  static const Color primaryDark = Color(0xFF01497C);
-  static const Color accent = Color(0xFF61A5C2);
+/// Light-mode neutrals. Dark mode uses the neutrals in constants/colors.dart
+/// (AppColors); the brand and status colors are shared by both modes.
+class _LightColors {
+  _LightColors._();
 
-  static const Color background = Color(0xFFF6F9FB);
+  static const Color background = Color(0xFFF3F4F6); // Slate 100
   static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceDark = Color(0xFF121A21);
-  static const Color backgroundDark = Color(0xFF0B1116);
-
-  static const Color textPrimary = Color(0xFF1A1A1A);
-  static const Color textSecondary = Color(0xFF6B7280);
-  static const Color textPrimaryDark = Color(0xFFECEFF1);
-  static const Color textSecondaryDark = Color(0xFF9CA3AF);
-
-  // Status colors reused by alerts/status_card widgets
-  static const Color statusNormal = Color(0xFF2E7D32);
-  static const Color statusWarning = Color(0xFFF9A825);
-  static const Color statusFall = Color(0xFFD32F2F);
-
-  static Color statusColor(String status) {
-    switch (status.toLowerCase()) {
-      case 'fall':
-        return statusFall;
-      case 'warning':
-        return statusWarning;
-      default:
-        return statusNormal;
-    }
-  }
+  static const Color textPrimary = Color(0xFF111827); // Slate 900
+  static const Color textSecondary = Color(0xFF374151); // Slate 700
+  static const Color border = Color(0xFFD1D5DB); // Slate 300
+  static const Color divider = Color(0xFFE5E7EB); // Slate 200
 }
 
 /// App-wide theme definitions. Import this, never build ThemeData inline.
+///
+/// The palette lives in one place, constants/colors.dart. This file only maps
+/// it onto Material's ColorScheme, so screens that read
+/// `Theme.of(context).colorScheme` (onSurface, surface, outlineVariant...)
+/// get readable colors in both light and dark mode.
 class AppTheme {
   AppTheme._();
 
   static ThemeData get lightTheme {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: AppColors.primary,
+    // Teal 800 on white is ~7.5:1; plain primary (teal 600) is too pale for
+    // white button text in light mode.
+    const brand = AppColors.primaryDark;
+
+    const colorScheme = ColorScheme(
       brightness: Brightness.light,
-      primary: AppColors.primary,
-      surface: AppColors.surface,
+      primary: brand,
+      onPrimary: Colors.white,
+      secondary: AppColors.primary,
+      onSecondary: Colors.white,
+      error: Color(0xFFB91C1C),
+      onError: Colors.white,
+      surface: _LightColors.surface,
+      onSurface: _LightColors.textPrimary,
+      outline: _LightColors.border,
+      outlineVariant: _LightColors.divider,
     );
 
-    return ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.light,
+    return _build(
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: AppColors.background,
-      appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-      ),
-      cardTheme: CardThemeData(
-        color: AppColors.surface,
-        elevation: 2,
-        margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
-        ),
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      ),
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: AppColors.surface,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        contentPadding:
-            const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-      ),
-      textTheme: const TextTheme(
-        titleLarge: TextStyle(
-          color: AppColors.textPrimary,
-          fontWeight: FontWeight.bold,
-        ),
-        bodyMedium: TextStyle(color: AppColors.textPrimary),
-        bodySmall: TextStyle(color: AppColors.textSecondary),
-      ),
-      navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: AppColors.surface,
-        indicatorColor: colorScheme.primary.withValues(alpha: 0.15),
-        labelTextStyle: WidgetStateProperty.all(
-          const TextStyle(fontWeight: FontWeight.w600),
-        ),
-      ),
+      scaffold: _LightColors.background,
+      appBarBackground: _LightColors.surface,
+      appBarForeground: _LightColors.textPrimary,
+      inputFill: _LightColors.surface,
+      inputBorder: _LightColors.border,
+      focus: brand,
+      buttonBackground: brand,
+      buttonForeground: Colors.white,
+      indicatorAlpha: 0.15,
     );
   }
 
   static ThemeData get darkTheme {
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: AppColors.primary,
+    const colorScheme = ColorScheme(
       brightness: Brightness.dark,
-      primary: AppColors.accent,
-      surface: AppColors.surfaceDark,
+      primary: AppColors.primaryLight,
+      onPrimary: Color(0xFF042F2E), // dark teal text on the light teal
+      secondary: AppColors.primary,
+      onSecondary: Colors.white,
+      error: AppColors.danger,
+      onError: Color(0xFF450A0A),
+      surface: AppColors.cardBackground,
+      onSurface: AppColors.textPrimary,
+      outline: AppColors.divider,
+      outlineVariant: AppColors.border,
     );
+
+    return _build(
+      colorScheme: colorScheme,
+      scaffold: AppColors.background,
+      appBarBackground: AppColors.cardBackground,
+      appBarForeground: AppColors.textPrimary,
+      inputFill: AppColors.cardBackground,
+      inputBorder: AppColors.border,
+      focus: AppColors.primaryLight,
+      buttonBackground: AppColors.primaryLight,
+      buttonForeground: const Color(0xFF042F2E),
+      indicatorAlpha: 0.25,
+    );
+  }
+
+  static ThemeData _build({
+    required ColorScheme colorScheme,
+    required Color scaffold,
+    required Color appBarBackground,
+    required Color appBarForeground,
+    required Color inputFill,
+    required Color inputBorder,
+    required Color focus,
+    required Color buttonBackground,
+    required Color buttonForeground,
+    required double indicatorAlpha,
+  }) {
+    OutlineInputBorder outline(Color color, {double width = 1}) {
+      return OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: color, width: width),
+      );
+    }
 
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.dark,
+      brightness: colorScheme.brightness,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: AppColors.backgroundDark,
-      appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.surfaceDark,
-        foregroundColor: Colors.white,
+      scaffoldBackgroundColor: scaffold,
+      dividerColor: colorScheme.outlineVariant,
+      appBarTheme: AppBarTheme(
+        backgroundColor: appBarBackground,
+        foregroundColor: appBarForeground,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
+        scrolledUnderElevation: 0,
         centerTitle: true,
       ),
       cardTheme: CardThemeData(
-        color: AppColors.surfaceDark,
-        elevation: 2,
+        color: colorScheme.surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
         margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: colorScheme.outlineVariant),
         ),
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: colorScheme.surface,
+        surfaceTintColor: Colors.transparent,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.accent,
-          foregroundColor: Colors.black,
+          backgroundColor: buttonBackground,
+          foregroundColor: buttonForeground,
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -143,25 +145,25 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.surfaceDark,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
+        fillColor: inputFill,
+        border: outline(inputBorder),
+        enabledBorder: outline(inputBorder),
+        focusedBorder: outline(focus, width: 2),
+        errorBorder: outline(colorScheme.error),
+        focusedErrorBorder: outline(colorScheme.error, width: 2),
         contentPadding:
             const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
       ),
       textTheme: const TextTheme(
-        titleLarge: TextStyle(
-          color: AppColors.textPrimaryDark,
-          fontWeight: FontWeight.bold,
-        ),
-        bodyMedium: TextStyle(color: AppColors.textPrimaryDark),
-        bodySmall: TextStyle(color: AppColors.textSecondaryDark),
+        titleLarge: TextStyle(fontWeight: FontWeight.bold),
+      ),
+      snackBarTheme: const SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: AppColors.backgroundDark,
-        indicatorColor: colorScheme.primary.withValues(alpha: 0.25),
+        backgroundColor: colorScheme.surface,
+        surfaceTintColor: Colors.transparent,
+        indicatorColor: colorScheme.primary.withValues(alpha: indicatorAlpha),
         labelTextStyle: WidgetStateProperty.all(
           const TextStyle(fontWeight: FontWeight.w600),
         ),

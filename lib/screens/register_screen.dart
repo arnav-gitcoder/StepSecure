@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:stepsecure_app/constants/colors.dart';
 import 'package:stepsecure_app/services/auth_service.dart';
+import 'package:stepsecure_app/services/firestore_service.dart';
+import 'package:stepsecure_app/utils/validators.dart';
 import 'package:stepsecure_app/widgets/custom_button.dart';
 import 'email_verification_screen.dart';
 import 'package:intl_phone_field/phone_number.dart';
@@ -37,9 +40,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   static final RegExp _passwordRule = RegExp(
     r'^(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>_\-+=~`\[\];/\\]).{8,}$',
   );
-  static final RegExp _emailRule = RegExp(
-    r'^[\w.+-]+@[\w-]+\.[\w.-]+$',
-  );
 
   @override
   void dispose() {
@@ -50,6 +50,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
+  // Borders and fill come from the app theme (InputDecorationTheme).
   InputDecoration inputDecoration({
     required String label,
     required IconData icon,
@@ -57,7 +58,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return InputDecoration(
       labelText: label,
       prefixIcon: Icon(icon),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
     );
   }
 
@@ -75,10 +75,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   String? _validateEmail(String? value) {
-    final trimmed = value?.trim() ?? '';
-    if (trimmed.isEmpty) return "Email is required";
-    if (!_emailRule.hasMatch(trimmed)) return "Enter a valid email address";
-    return null;
+    return Validators.email(value);
   }
 
   String? _validatePassword(String? value) {
@@ -108,6 +105,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _handleRegister() async {
+    if (_loading) return;
     final formValid = _formKey.currentState?.validate() ?? false;
 
     if (!formValid) {
@@ -122,18 +120,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     setState(() => _loading = true);
     try {
+      final name = fullNameController.text.trim();
       final user = await AuthService.instance.signUpWithEmail(
         email: emailController.text.trim(),
         password: passwordController.text,
+        displayName: name,
       );
 
       if (user != null) {
-        // TODO: once a Firestore user-profile layer exists, move this
-        // there instead — SharedPreferences is local-only and won't
-        // sync across devices or survive an uninstall.
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('registered_name_${user.uid}', fullNameController.text.trim());
-        await prefs.setString('registered_phone_${user.uid}', _fullPhoneNumber ?? '');
+        // Profile (name + phone) lives in Firestore so it follows the
+        // account across devices. Best effort: the account already exists,
+        // so a slow or failed save must not block or fail sign-up. The name
+        // is also stored on the Auth account itself above.
+        try {
+          await FirestoreService()
+              .saveUserProfile(user.uid, displayName: name, phone: _fullPhoneNumber)
+              .timeout(const Duration(seconds: 5));
+        } on TimeoutException {
+          // Firestore keeps the write queued and sends it when back online.
+        } catch (_) {}
       }
 
       if (!mounted || user == null) return;
@@ -141,7 +146,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => EmailVerificationScreen(email: user.email!),
+          builder: (_) => EmailVerificationScreen(
+            email: user.email ?? emailController.text.trim(),
+          ),
         ),
       );
     } catch (e) {

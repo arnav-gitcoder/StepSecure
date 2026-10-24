@@ -18,9 +18,19 @@ class EmailVerificationScreen extends StatefulWidget {
 }
 
 class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
+  static const int _resendCooldownSeconds = 30;
+
+  /// Spinner on the button: only for checks the user asked for.
   bool _checking = false;
+
+  /// Guard so a slow check can't overlap the next poll.
+  bool _inFlight = false;
+
   bool _resending = false;
+  int _cooldown = 0;
+
   Timer? _pollTimer;
+  Timer? _cooldownTimer;
 
   @override
   void initState() {
@@ -36,47 +46,92 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   @override
   void dispose() {
     _pollTimer?.cancel();
+    _cooldownTimer?.cancel();
     super.dispose();
   }
 
+  void _showSnack(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _goToLogin() {
+    _pollTimer?.cancel();
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  }
+
   Future<void> _checkVerified({bool silent = false}) async {
-    if (_checking) return;
-    setState(() => _checking = true);
+    if (_inFlight) return;
+    _inFlight = true;
+    if (!silent && mounted) setState(() => _checking = true);
 
-    final verified = await AuthService.instance.reloadAndCheckVerified();
+    try {
+      // null = couldn't reach Firebase. That is not "unverified", and it
+      // must not throw out of a timer callback.
+      final fresh = await AuthService.instance.refreshEmailVerified();
+      if (!mounted) return;
 
-    if (!mounted) return;
-    setState(() => _checking = false);
+      // The account may have been deleted/disabled while we waited.
+      if (AuthService.instance.currentUser == null) {
+        _goToLogin();
+        return;
+      }
 
-    if (verified) {
-      _pollTimer?.cancel();
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const MainNavigation()),
-        (route) => false,
-      );
-    } else if (!silent) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Not verified yet — check your inbox and spam folder."),
-        ),
-      );
+      if (fresh == true) {
+        _pollTimer?.cancel();
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const MainNavigation()),
+          (route) => false,
+        );
+        return;
+      }
+
+      if (!silent) {
+        _showSnack(
+          fresh == null
+              ? "Couldn't reach the server. Check your connection and try again."
+              : "Not verified yet — check your inbox and spam folder.",
+        );
+      }
+    } finally {
+      _inFlight = false;
+      if (!silent && mounted) setState(() => _checking = false);
     }
   }
 
+  void _startCooldown() {
+    _cooldownTimer?.cancel();
+    setState(() => _cooldown = _resendCooldownSeconds);
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() => _cooldown -= 1);
+      if (_cooldown <= 0) timer.cancel();
+    });
+  }
+
   Future<void> _resend() async {
+    if (_resending || _cooldown > 0) return;
+
     setState(() => _resending = true);
     try {
       await AuthService.instance.sendEmailVerification();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Verification email sent.")),
-      );
+      _showSnack("Verification email sent.");
+      // Firebase rate-limits these; a short cooldown avoids
+      // "too many attempts" errors from repeated taps.
+      _startCooldown();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AuthService.instance.friendlyError(e))),
-      );
+      _showSnack(AuthService.instance.friendlyError(e));
     } finally {
       if (mounted) setState(() => _resending = false);
     }
@@ -85,11 +140,13 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
   Future<void> _useDifferentAccount() async {
     await AuthService.instance.signOut();
     if (!mounted) return;
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (route) => false,
-    );
+    _goToLogin();
+  }
+
+  String get _resendLabel {
+    if (_resending) return "Sending...";
+    if (_cooldown > 0) return "Resend in ${_cooldown}s";
+    return "Resend email";
   }
 
   @override
@@ -116,7 +173,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
               const SizedBox(height: 12),
               Text(
                 "We sent a verification link to ${widget.email}. "
-                "Open it, then come back here.",
+                "Open it, then come back here. If you can't find it, "
+                "check your spam folder.",
                 textAlign: TextAlign.center,
                 style: AppStyles.bodyMedium.copyWith(
                   color: cs.onSurface.withValues(alpha: 0.7),
@@ -131,8 +189,8 @@ class _EmailVerificationScreenState extends State<EmailVerificationScreen> {
               ),
               const SizedBox(height: 12),
               TextButton(
-                onPressed: _resending ? null : _resend,
-                child: Text(_resending ? "Sending..." : "Resend email"),
+                onPressed: (_resending || _cooldown > 0) ? null : _resend,
+                child: Text(_resendLabel),
               ),
               TextButton(
                 onPressed: _useDifferentAccount,
