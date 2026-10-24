@@ -1,0 +1,121 @@
+rules_version = '2';
+
+// StepSecure — Cloud Firestore Security Rules
+//
+// Model: every document lives under users/{uid}. A signed-in user can only
+// reach their own subtree. Everything not listed here is denied.
+//
+// Alerts are created by the trusted backend (Admin SDK bypasses these rules),
+// never by the app. The app may only move an alert from "pending" to
+// "acknowledged". Nothing is ever deleted from the client.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- helpers ----------
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // Keys present in the incoming document are all in `allowed`.
+    function onlyKeys(allowed) {
+      return request.resource.data.keys().hasOnly(allowed);
+    }
+
+    // The set of fields that differ between the stored and the incoming doc.
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    function isText(value, minLen, maxLen) {
+      return value is string && value.size() >= minLen && value.size() <= maxLen;
+    }
+
+    // ---------- caregiver profile: users/{uid} ----------
+
+    function validProfile() {
+      return onlyKeys(['displayName', 'phone', 'role', 'createdAt'])
+        && isText(request.resource.data.displayName, 1, 100)
+        && (!('phone' in request.resource.data)
+            || isText(request.resource.data.phone, 5, 25))
+        && request.resource.data.role == 'caregiver';
+    }
+
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+
+      // createdAt must be the server's clock, so it can't be back-dated.
+      allow create: if isOwner(uid)
+        && validProfile()
+        && request.resource.data.createdAt == request.time;
+
+      // Role and createdAt are immutable after creation.
+      allow update: if isOwner(uid)
+        && validProfile()
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.createdAt == resource.data.createdAt;
+
+      allow delete: if false;
+
+      // ---------- alerts: users/{uid}/alerts/{alertId} ----------
+      //
+      // Read-only for the app, except acknowledging.
+      match /alerts/{alertId} {
+        allow read: if isOwner(uid);
+
+        // Alerts come from the backend only. A client that could create
+        // alerts could fabricate emergencies or hide real ones.
+        allow create: if false;
+
+        // pending -> acknowledged, touching only those two fields, with the
+        // server's clock. No other edits, no un-acknowledging.
+        allow update: if isOwner(uid)
+          && resource.data.status == 'pending'
+          && request.resource.data.status == 'acknowledged'
+          && changedKeys().hasOnly(['status', 'acknowledgedAt'])
+          && request.resource.data.acknowledgedAt == request.time;
+
+        // Acknowledging must never delete evidence.
+        allow delete: if false;
+      }
+
+      // ---------- contacts: users/{uid}/contacts/{contactId} ----------
+      function validContact() {
+        let d = request.resource.data;
+        return onlyKeys(['name', 'phone', 'relation', 'email', 'priority', 'createdAt'])
+          && isText(d.name, 1, 100)
+          && isText(d.relation, 1, 50)
+          // E.164 international number, the format the app stores.
+          && d.phone is string
+          && d.phone.matches('^\\+[1-9][0-9]{7,14}$')
+          && (!('email' in d)
+              || (isText(d.email, 3, 254) && d.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')))
+          && d.priority is int
+          && d.priority > -100000 && d.priority < 100000;
+      }
+
+      match /contacts/{contactId} {
+        allow read: if isOwner(uid);
+
+        allow create: if isOwner(uid)
+          && validContact()
+          && request.resource.data.createdAt == request.time;
+
+        allow update: if isOwner(uid)
+          && validContact()
+          && request.resource.data.createdAt == resource.data.createdAt;
+
+        allow delete: if isOwner(uid);
+      }
+    }
+
+    // Default deny: anything not matched above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

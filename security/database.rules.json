@@ -1,0 +1,54 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "userDevices": {
+      "$uid": {
+        // A user may list which wearables are linked to them. Links are
+        // created only by the trusted backend (Admin SDK bypasses rules),
+        // never by the app, so nobody can claim another person's device.
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": false
+      }
+    },
+
+    "sensors": {
+      "$deviceId": {
+        // Read only if the device is linked to the signed-in user.
+        ".read": "auth != null && root.child('userDevices').child(auth.uid).child($deviceId).exists()",
+
+        // Write only by the device itself, identified by a custom-token claim
+        // `deviceId` that only the trusted backend can mint. Until the
+        // hardware team and backend agree on device auth, nothing but the
+        // Admin SDK can write, which is the safe default.
+        ".write": "auth != null && auth.token.deviceId === $deviceId",
+
+        "live": {
+          ".validate": "newData.hasChildren(['timestamp'])",
+          "accelX": { ".validate": "newData.isNumber()" },
+          "accelY": { ".validate": "newData.isNumber()" },
+          "accelZ": { ".validate": "newData.isNumber()" },
+          "gyroX":  { ".validate": "newData.isNumber()" },
+          "gyroY":  { ".validate": "newData.isNumber()" },
+          "gyroZ":  { ".validate": "newData.isNumber()" },
+          "accelUnit": { ".validate": "newData.isString() && newData.val().length <= 16" },
+          "gyroUnit":  { ".validate": "newData.isString() && newData.val().length <= 16" },
+          "prediction": { ".validate": "newData.isString() && (newData.val() === 'normal' || newData.val() === 'fall')" },
+          "timestamp": { ".validate": "newData.isNumber()" },
+          "$other": { ".validate": false }
+        },
+
+        "status": {
+          "state": { ".validate": "newData.isString() && (newData.val() === 'online' || newData.val() === 'offline')" },
+          "lastHeartbeat": { ".validate": "newData.isNumber()" },
+          "monitoring": { ".validate": "newData.isBoolean()" },
+          "battery": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100" },
+          "$other": { ".validate": false }
+        },
+
+        "$other": { ".validate": false }
+      }
+    }
+  }
+}
